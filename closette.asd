@@ -2,7 +2,7 @@
 
 (defpackage #:closette.system
   (:use :common-lisp :asdf))
- 
+
 (in-package :closette.system)
 
 (defsystem #:closette
@@ -11,6 +11,7 @@
   :author "Gregor Kiczales, et al."
   :maintainer "Chun Tian (binghe)"
   :license "MIT"
+  :depends-on ("trivial-backtrace")
   :components
   ((:file "package")
    (:file "utils"             :depends-on ("package"))

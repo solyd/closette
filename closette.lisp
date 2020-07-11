@@ -37,6 +37,10 @@
 
 (in-package #:closette)
 
+(defmacro ptrace () `(trivial-backtrace:print-backtrace-to-stream *standard-output*))
+
+(cl:print ">>>>>>>>>>> HELLO")
+
 ;;;
 ;;; Standard instances
 ;;;
@@ -52,7 +56,7 @@
 
 (defun print-std-instance (instance stream depth)
   (declare (ignore depth))
-  (print-object instance stream))
+  (cl:print-object instance stream))
 
 ;;; Standard instance allocation
 
@@ -62,7 +66,7 @@
   (eq (slot-definition-allocation slot) ':instance))
 
 (defun std-allocate-instance (class)
-  (print (format nil "std-allocate-instance ~S" class))
+;  (ptrace)
   (allocate-std-instance
     class
     (allocate-slot-storage (count-if #'instance-slot-p (class-slots class))
@@ -255,7 +259,7 @@
 
 (defmacro defclass (name direct-superclasses direct-slots
                     &rest options)
-  (print (format nil "defclass ~S" name))
+  (cl:print (cl:format nil "defclass ~S" name))
   `(ensure-class ',name
                  :direct-superclasses
                  ,(canonicalize-direct-superclasses direct-superclasses)
@@ -346,13 +350,18 @@
   (defun forget-all-classes ()
     (clrhash class-table)
     (values))
+
+  (defun get-class-table ()
+    class-table)
  ) ;end let class-table
 
 ;;; Ensure class
 
-(defun ensure-class (name &rest all-keys
-                          &key (metaclass the-class-standard-class)
-                          &allow-other-keys)
+(defun ensure-class (name
+                     &rest all-keys
+                     &key (metaclass the-class-standard-class)
+                     &allow-other-keys)
+  (cl:print (cl:format nil "ensure-class ~S" name))
   (if (find-class name nil)
       (error "Can't redefine the class named ~S." name)
       (let ((class (apply (if (eq metaclass the-class-standard-class)
@@ -366,10 +375,11 @@
 ;;; standard-class without falling into method lookup.  However, it cannot be
 ;;; called until standard-class itself exists.
 
-(defun make-instance-standard-class
-       (metaclass &key name direct-superclasses direct-slots
-                  &allow-other-keys)
+(defun make-instance-standard-class (metaclass
+                                     &key name direct-superclasses direct-slots
+                                     &allow-other-keys)
   (declare (ignore metaclass))
+  (cl:print (cl:format nil "make-instance-standard-class ~S" name))
   (let ((class (std-allocate-instance the-class-standard-class)))
     (setf (class-name class) name)
     (setf (class-direct-subclasses class) ())
@@ -746,16 +756,20 @@
   (defun forget-all-generic-functions ()
     (clrhash generic-function-table)
     (values))
+
+  (defun get-generic-function-table ()
+    generic-fucntion-table)
  ) ;end let generic-function-table
 
 ;;; ensure-generic-function
 
-(defun ensure-generic-function
-       (function-name
-        &rest all-keys
-        &key (generic-function-class the-class-standard-gf)
-             (method-class the-class-standard-method)
-        &allow-other-keys)
+(defun ensure-generic-function (function-name
+                                &rest all-keys
+                                &key
+                                  (generic-function-class the-class-standard-gf)
+                                  (method-class the-class-standard-method)
+                                &allow-other-keys)
+  (cl:print (cl:format nil "ensure-generic-function ~S" function-name))
   (if (find-generic-function function-name nil)
       (find-generic-function function-name)
       (let ((gf (apply (if (eq generic-function-class the-class-standard-gf)
@@ -806,7 +820,7 @@
 (defmacro defmethod (&rest args)
   (multiple-value-bind (function-name qualifiers
                         lambda-list specializers body)
-        (parse-defmethod args)
+      (parse-defmethod args)
     `(ensure-method (find-generic-function ',function-name)
        :lambda-list ',lambda-list
        :qualifiers ',qualifiers
@@ -821,6 +835,7 @@
   `(find-class ',specializer))
 
 (defun parse-defmethod (args)
+;  (cl:print (cl:format nil "parse-defmethod ~S" args))
   (let ((fn-spec (car args))
         (qualifiers ())
         (specialized-lambda-list nil)
@@ -937,6 +952,7 @@
 ;;; ensure method
 
 (defun ensure-method (gf &rest all-keys)
+;  (cl:print (cl:format nil "ensure-methjod ~S, allkeys=~S" gf all-keys))
   (let ((new-method
            (apply
               (if (eq (generic-function-method-class gf)
@@ -974,6 +990,7 @@
 ;;; programs without this feature of full CLOS.
 
 (defun add-method (gf method)
+;  (cl:print (cl:format nil "add-method ~S ~S" gf method))
   (let ((old-method
            (find-method gf (method-qualifiers method)
                            (method-specializers method) nil)))
@@ -986,6 +1003,7 @@
   method)
 
 (defun remove-method (gf method)
+  (cl:print (cl:format nil "remove-method ~S ~S" gf method))
   (setf (generic-function-methods gf)
         (remove method (generic-function-methods gf)))
   (setf (method-generic-function method) nil)
@@ -995,8 +1013,8 @@
   (finalize-generic-function gf)
   method)
 
-(defun find-method (gf qualifiers specializers
-                    &optional (errorp t))
+(defun find-method (gf qualifiers specializers &optional (errorp t))
+;;  (cl:print (cl:format nil "find-method ~S ~S ~S" gf qualifiers specializers))
   (let ((method
           (find-if #'(lambda (method)
                        (and (equal qualifiers
@@ -1039,6 +1057,7 @@
 ;;; apply-generic-function
 
 (defun apply-generic-function (gf args)
+  (cl:print (cl:format nil "apply-generic-function ~S ~S" gf args))
   (apply (generic-function-discriminating-function gf) args))
 
 ;;; compute-discriminating-function
@@ -1053,6 +1072,7 @@
             (slow-method-lookup gf args classes)))))
 
 (defun slow-method-lookup (gf args classes)
+;  (cl:print (cl:format nil "slow-method-lookup ~S ~S ~S" gf args classes))
   (let* ((applicable-methods
            (compute-applicable-methods-using-classes gf classes))
          (emfun
@@ -1098,6 +1118,7 @@
 ;;; apply-methods and compute-effective-method-function
 
 (defun apply-methods (gf args methods)
+  (cl:print (cl:format nil "apply-methods ~S ~S ~S" gf args methods))
   (funcall (compute-effective-method-function gf methods)
            args))
 
@@ -1111,7 +1132,7 @@
   (equal '(:around) (method-qualifiers method)))
 
 (defun std-compute-effective-method-function (gf methods)
-  (break)
+;  (break)
   (let ((primaries (remove-if-not #'primary-method-p methods))
         (around (find-if #'around-method-p methods)))
     (when (null primaries)
@@ -1150,6 +1171,7 @@
 ;;; apply-method and compute-method-function
 
 (defun apply-method (method args next-methods)
+  (cl:print (cl:format nil "apply-method ~S ~S ~S" method args next-methods))
   (funcall (method-function method)
            args
            (if (null next-methods)
