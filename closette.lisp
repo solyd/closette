@@ -5,8 +5,8 @@
 ;;; Minor revisions of September 27, 1991 by desRivieres@parc.xerox.com:
 ;;;   - remove spurious "&key" in header of initialize-instance method
 ;;;     for standard-class (bottom of pg.310 of AMOP)
-;;;   - add recommendation about not compiling this file 
-;;;   - change comment to reflect PARC ftp server name change  
+;;;   - add recommendation about not compiling this file
+;;;   - change comment to reflect PARC ftp server name change
 ;;;   - add a BOA constructor to std-instance to please AKCL
 ;;;   - by default, efunctuate methods rather than compile them
 ;;;   - also make minor changes to newcl.lisp
@@ -18,11 +18,11 @@
 ;;; based upon this software are permitted.  Any distribution of this
 ;;; software or derivative works must comply with all applicable United
 ;;; States export control laws.
-;;; 
+;;;
 ;;; This software is made available AS IS, and Xerox Corporation makes no
 ;;; warranty about the software, its performance or its conformity to any
 ;;; specification.
-;;; 
+;;;
 ;;;
 ;;; Closette is an implementation of a subset of CLOS with a metaobject
 ;;; protocol as described in "The Art of The Metaobject Protocol",
@@ -62,6 +62,7 @@
   (eq (slot-definition-allocation slot) ':instance))
 
 (defun std-allocate-instance (class)
+  (print (format nil "std-allocate-instance ~S" class))
   (allocate-std-instance
     class
     (allocate-slot-storage (count-if #'instance-slot-p (class-slots class))
@@ -127,7 +128,7 @@
 (defun (setf slot-value) (new-value object slot-name)
   (if (eq (class-of (class-of object)) the-class-standard-class)
       (setf (std-slot-value object slot-name) new-value)
-      (setf-slot-value-using-class 
+      (setf-slot-value-using-class
         new-value (class-of object) object slot-name)))
 
 (defun std-slot-boundp (instance slot-name)
@@ -206,16 +207,16 @@
  '(defclass standard-class ()
       ((name :initarg :name)              ; :accessor class-name
        (direct-superclasses               ; :accessor class-direct-superclasses
-        :initarg :direct-superclasses) 
+        :initarg :direct-superclasses)
        (direct-slots)                     ; :accessor class-direct-slots
        (class-precedence-list)            ; :accessor class-precedence-list
        (effective-slots)                  ; :accessor class-slots
        (direct-subclasses :initform ())   ; :accessor class-direct-subclasses
        (direct-methods :initform ()))))   ; :accessor class-direct-methods
 
-;;; Defining the metaobject slot accessor function as regular functions 
+;;; Defining the metaobject slot accessor function as regular functions
 ;;; greatly simplifies the implementation without removing functionality.
- 
+
 (defun class-name (class) (std-slot-value class 'name))
 (defun (setf class-name) (new-value class)
   (setf (slot-value class 'name) new-value))
@@ -254,6 +255,7 @@
 
 (defmacro defclass (name direct-superclasses direct-slots
                     &rest options)
+  (print (format nil "defclass ~S" name))
   `(ensure-class ',name
                  :direct-superclasses
                  ,(canonicalize-direct-superclasses direct-superclasses)
@@ -290,16 +292,16 @@
              (setq initfunction
                    `(function (lambda () ,(cadr olist))))
              (setq initform `',(cadr olist)))
-            (:initarg 
+            (:initarg
              (push-on-end (cadr olist) initargs))
-            (:reader 
+            (:reader
              (push-on-end (cadr olist) readers))
-            (:writer 
+            (:writer
              (push-on-end (cadr olist) writers))
             (:accessor
              (push-on-end (cadr olist) readers)
              (push-on-end `(setf ,(cadr olist)) writers))
-            (otherwise 
+            (otherwise
              (push-on-end `',(car olist) other-options)
              (push-on-end `',(cadr olist) other-options))))
         `(list
@@ -318,7 +320,7 @@
      (list ':metaclass
            `(find-class ',(cadr option))))
     (:default-initargs
-     (list 
+     (list
       ':direct-default-initargs
       `(list ,@(mapappend
                 #'(lambda (x) x)
@@ -364,7 +366,7 @@
 ;;; standard-class without falling into method lookup.  However, it cannot be
 ;;; called until standard-class itself exists.
 
-(defun make-instance-standard-class 
+(defun make-instance-standard-class
        (metaclass &key name direct-superclasses direct-slots
                   &allow-other-keys)
   (declare (ignore metaclass))
@@ -385,7 +387,7 @@
     (setf (class-direct-superclasses class) supers)
     (dolist (superclass supers)
       (push class (class-direct-subclasses superclass))))
-  (let ((slots 
+  (let ((slots
           (mapcar #'(lambda (slot-properties)
                       (apply #'make-direct-slot-definition
                              slot-properties))
@@ -393,10 +395,10 @@
     (setf (class-direct-slots class) slots)
     (dolist (direct-slot slots)
       (dolist (reader (slot-definition-readers direct-slot))
-        (add-reader-method 
+        (add-reader-method
           class reader (slot-definition-name direct-slot)))
       (dolist (writer (slot-definition-writers direct-slot))
-        (add-writer-method 
+        (add-writer-method
           class writer (slot-definition-name direct-slot)))))
   (funcall (if (eq (class-of class) the-class-standard-class)
               #'std-finalize-inheritance
@@ -474,7 +476,7 @@
 
 ;;; finalize-inheritance
 
-(defun std-finalize-inheritance (class) 
+(defun std-finalize-inheritance (class)
   (setf (class-precedence-list class)
         (funcall (if (eq (class-of class) the-class-standard-class)
                      #'std-compute-class-precedence-list
@@ -501,15 +503,15 @@
 ;;; sorting an arbitrary set of elements while honoring the precedence
 ;;; constraints given by a set of (X,Y) pairs that indicate that element
 ;;; X must precede element Y.  The tie-breaker procedure is called when it
-;;; is necessary to choose from multiple minimal elements; both a list of 
+;;; is necessary to choose from multiple minimal elements; both a list of
 ;;; candidates and the ordering so far are provided as arguments.
 
 (defun topological-sort (elements constraints tie-breaker)
   (let ((remaining-constraints constraints)
         (remaining-elements elements)
-        (result ())) 
+        (result ()))
     (loop
-     (let ((minimal-elements 
+     (let ((minimal-elements
             (remove-if
              #'(lambda (class)
                  (member class remaining-constraints
@@ -537,7 +539,7 @@
 ;;; rightmost in the class precedence list computed so far."  The same result
 ;;; is obtained by inspecting the partially constructed class precedence list
 ;;; from right to left, looking for the first minimal element to show up among
-;;; the direct superclasses of the class precedence list constituent.  
+;;; the direct superclasses of the class precedence list constituent.
 ;;; (There's a lemma that shows that this rule yields a unique result.)
 
 (defun std-tie-breaker-rule (minimal-elements cpl-so-far)
@@ -569,7 +571,7 @@
 ;;; C_2, ..., C_n is the set ((C C_1) (C_1 C_2) ...(C_n-1 C_n)).
 
 (defun local-precedence-ordering (class)
-  (mapcar #'list 
+  (mapcar #'list
           (cons class
                 (butlast (class-direct-superclasses class)))
           (class-direct-superclasses class)))
@@ -579,12 +581,12 @@
 (defun std-compute-slots (class)
   (let* ((all-slots (mapappend #'class-direct-slots
                                (class-precedence-list class)))
-         (all-names (remove-duplicates 
+         (all-names (remove-duplicates
                       (mapcar #'slot-definition-name all-slots))))
     (mapcar #'(lambda (name)
                 (funcall
                   (if (eq (class-of class) the-class-standard-class)
-                      #'std-compute-effective-slot-definition 
+                      #'std-compute-effective-slot-definition
                       #'compute-effective-slot-definition)
                   class
                   (remove name all-slots
@@ -604,7 +606,7 @@
       :initfunction (if initer
                         (slot-definition-initfunction initer)
                         nil)
-      :initargs (remove-duplicates 
+      :initargs (remove-duplicates
                   (mapappend #'slot-definition-initargs
                              direct-slots))
       :allocation (slot-definition-allocation (car direct-slots)))))
@@ -617,7 +619,7 @@
  '(defclass standard-generic-function ()
       ((name :initarg :name)      ; :accessor generic-function-name
        (lambda-list               ; :accessor generic-function-lambda-list
-          :initarg :lambda-list)          
+          :initarg :lambda-list)
        (methods :initform ())     ; :accessor generic-function-methods
        (method-class              ; :accessor generic-function-method-class
           :initarg :method-class)
@@ -709,7 +711,7 @@
 
 (defmacro defgeneric (function-name lambda-list &rest options)
   `(ensure-generic-function
-     ',function-name 
+     ',function-name
      :lambda-list ',lambda-list
      ,@(canonicalize-defgeneric-options options)))
 
@@ -728,7 +730,7 @@
 
 ;;; find-generic-function looks up a generic function by name.  It's an
 ;;; artifact of the fact that our generic function metaobjects can't legally
-;;; be stored a symbol's function value. 
+;;; be stored a symbol's function value.
 
 (let ((generic-function-table (make-hash-table :test #'equal)))
 
@@ -754,7 +756,7 @@
         &key (generic-function-class the-class-standard-gf)
              (method-class the-class-standard-method)
         &allow-other-keys)
-  (if (find-generic-function function-name nil) 
+  (if (find-generic-function function-name nil)
       (find-generic-function function-name)
       (let ((gf (apply (if (eq generic-function-class the-class-standard-gf)
                            #'make-instance-standard-generic-function
@@ -793,8 +795,8 @@
   (let ((gf (std-allocate-instance the-class-standard-gf)))
     (setf (generic-function-name gf) name)
     (setf (generic-function-lambda-list gf) lambda-list)
-    (setf (generic-function-methods gf) ()) 
-    (setf (generic-function-method-class gf) method-class) 
+    (setf (generic-function-methods gf) ())
+    (setf (generic-function-method-class gf) method-class)
     (setf (classes-to-emf-table gf) (make-hash-table :test #'equal))
     (finalize-generic-function gf)
     gf))
@@ -808,7 +810,7 @@
     `(ensure-method (find-generic-function ',function-name)
        :lambda-list ',lambda-list
        :qualifiers ',qualifiers
-       :specializers ,(canonicalize-specializers specializers) 
+       :specializers ,(canonicalize-specializers specializers)
        :body ',body
        :environment (top-level-environment))))
 
@@ -832,7 +834,7 @@
                (progn (setq specialized-lambda-list arg)
                       (setq parse-state :body))))
          (:body (push-on-end arg body))))
-    (values fn-spec 
+    (values fn-spec
             qualifiers
             (extract-lambda-list specialized-lambda-list)
             (extract-specializers specialized-lambda-list)
@@ -852,7 +854,7 @@
 
 (defun gf-required-arglist (gf)
   (let ((plist
-          (analyze-lambda-list 
+          (analyze-lambda-list
             (generic-function-lambda-list gf))))
     (getf plist ':required-args)))
 
@@ -864,7 +866,7 @@
          (aok (getf plist ':allow-other-keys))
          (opts (getf plist ':optional-args))
          (auxs (getf plist ':auxiliary-args)))
-    `(,@requireds 
+    `(,@requireds
       ,@(if rv `(&rest ,rv) ())
       ,@(if (or ks aok) `(&key ,@ks) ())
       ,@(if aok '(&allow-other-keys) ())
@@ -909,7 +911,7 @@
             (&aux
               (setq state :parsing-aux)))
           (case state
-            (:parsing-required 
+            (:parsing-required
              (push-on-end arg required-args)
              (if (listp arg)
                  (progn (push-on-end (car arg) required-names)
@@ -939,7 +941,7 @@
            (apply
               (if (eq (generic-function-method-class gf)
                       the-class-standard-method)
-                  #'make-instance-standard-method 
+                  #'make-instance-standard-method
                   #'make-instance)
               (generic-function-method-class gf)
               all-keys)))
@@ -950,8 +952,8 @@
 ;;; standard-method without falling into method lookup.  However, it cannot
 ;;; be called until standard-method exists.
 
-(defun make-instance-standard-method (method-class 
-                                      &key lambda-list qualifiers 
+(defun make-instance-standard-method (method-class
+                                      &key lambda-list qualifiers
                                            specializers body environment)
   (declare (ignore method-class))
   (let ((method (std-allocate-instance the-class-standard-method)))
@@ -961,7 +963,7 @@
     (setf (method-body method) body)
     (setf (method-environment method) environment)
     (setf (method-generic-function method) nil)
-    (setf (method-function method) 
+    (setf (method-function method)
           (std-compute-method-function method))
     method))
 
@@ -1020,7 +1022,7 @@
 
 (defun add-writer-method (class fn-name slot-name)
   (ensure-method
-    (ensure-generic-function 
+    (ensure-generic-function
       fn-name :lambda-list '(new-value object))
     :lambda-list '(new-value object)
     :qualifiers ()
@@ -1043,7 +1045,7 @@
 
 (defun std-compute-discriminating-function (gf)
   #'(lambda (&rest args)
-      (let* ((classes (mapcar #'class-of 
+      (let* ((classes (mapcar #'class-of
                               (required-portion gf args)))
              (emfun (gethash classes (classes-to-emf-table gf) nil)))
         (if emfun
@@ -1066,14 +1068,14 @@
 
 (defun compute-applicable-methods-using-classes
        (gf required-classes)
-  (sort 
+  (sort
     (copy-list
       (remove-if-not #'(lambda (method)
                          (every #'subclassp
                                 required-classes
                                 (method-specializers method)))
                      (generic-function-methods gf)))
-    #'(lambda (m1 m2) 
+    #'(lambda (m1 m2)
         (funcall
           (if (eq (class-of gf) the-class-standard-gf)
               #'std-method-more-specific-p
@@ -1109,6 +1111,7 @@
   (equal '(:around) (method-qualifiers method)))
 
 (defun std-compute-effective-method-function (gf methods)
+  (break)
   (let ((primaries (remove-if-not #'primary-method-p methods))
         (around (find-if #'around-method-p methods)))
     (when (null primaries)
@@ -1127,7 +1130,7 @@
               (befores (remove-if-not #'before-method-p methods))
               (reverse-afters
                 (reverse (remove-if-not #'after-method-p methods))))
-          #'(lambda (args)        
+          #'(lambda (args)
               (dolist (before befores)
                 (funcall (method-function before) args nil))
               (multiple-value-prog1
@@ -1140,7 +1143,7 @@
 (defun compute-primary-emfun (methods)
   (if (null methods)
       nil
-      (let ((next-emfun (compute-primary-emfun (cdr methods))))               
+      (let ((next-emfun (compute-primary-emfun (cdr methods))))
         #'(lambda (args)
             (funcall (method-function (car methods)) args next-emfun)))))
 
@@ -1162,7 +1165,7 @@
          (flet ((call-next-method (&rest cnm-args)
                   (if (null next-emfun)
                       (error "No next method for the~@
-                              generic function ~S." 
+                              generic function ~S."
                              (method-generic-function ',method))
                       (funcall next-emfun (or cnm-args args))))
                 (next-method-p ()
@@ -1172,7 +1175,7 @@
                    args))))))
 
 ;;; N.B. The function kludge-arglist is used to pave over the differences
-;;; between argument keyword compatibility for regular functions versus 
+;;; between argument keyword compatibility for regular functions versus
 ;;; generic functions.
 
 (defun kludge-arglist (lambda-list)
